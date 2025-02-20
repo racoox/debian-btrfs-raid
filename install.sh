@@ -7,6 +7,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULE_DIR="$SCRIPT_DIR/modules"
 
+# Declare CONFIG as associative array
+declare -A CONFIG
+
 # Check if modules directory exists
 if [ ! -d "$MODULE_DIR" ]; then
     echo "Error: modules directory not found!"

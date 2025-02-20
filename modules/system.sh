@@ -71,9 +71,9 @@ passwd "${CONFIG[username]}"
 
 # Install and configure GRUB
 grub-install --target=x86_64-efi --efi-directory=/boot/efi \
-    --bootloader-id=debian --recheck UUID=${CONFIG[luks1_uuid]}
+    --bootloader-id=debian --recheck
 grub-install --target=x86_64-efi --efi-directory=/boot/efi \
-    --bootloader-id=debian --recheck UUID=${CONFIG[luks2_uuid]}
+    --bootloader-id=debian --recheck
 update-grub
 
 # Enable services
@@ -103,8 +103,8 @@ configure_encryption() {
     # Add crypttab entries
     cat << EOF > /mnt/etc/crypttab
 # <target name>    <source device>                              <key file>  <options>
-cryptroot1  UUID=${CONFIG[luks1_uuid]}  none  luks,discard
-cryptroot2  UUID=${CONFIG[luks2_uuid]}  none  luks,discard
+${CONFIG[cryptname1]}  UUID=${CONFIG[luks1_uuid]}  none  luks,discard
+${CONFIG[cryptname2]}  UUID=${CONFIG[luks2_uuid]}  none  luks,discard
 EOF
 
     # Configure initramfs for encryption
@@ -115,7 +115,7 @@ EOF
     # Update GRUB configuration
     cat << EOF >> /mnt/etc/default/grub
 GRUB_ENABLE_CRYPTODISK=y
-GRUB_CMDLINE_LINUX="cryptdevice=UUID=${CONFIG[luks1_uuid]}:cryptroot1 cryptdevice=UUID=${CONFIG[luks2_uuid]}:cryptroot2 root=/dev/mapper/cryptroot1"
+GRUB_CMDLINE_LINUX="cryptdevice=UUID=${CONFIG[luks1_uuid]}:${CONFIG[cryptname1]} cryptdevice=UUID=${CONFIG[luks2_uuid]}:${CONFIG[cryptname2]} root=/dev/mapper/${CONFIG[cryptname1]}"
 EOF
 
     # Update initramfs

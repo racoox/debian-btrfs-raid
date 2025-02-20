@@ -4,7 +4,7 @@
 # Function to setup BTRFS RAID1
 setup_btrfs_raid() {
     log "Creating BTRFS RAID1..."
-    mkfs.btrfs -f -d raid1 -m raid1 /dev/mapper/cryptroot1 /dev/mapper/cryptroot2
+    mkfs.btrfs -f -d raid1 -m raid1 "/dev/mapper/${CONFIG[cryptname1]}" "/dev/mapper/${CONFIG[cryptname2]}"
 }
 
 # Function to create BTRFS subvolumes

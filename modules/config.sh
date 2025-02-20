@@ -1,6 +1,9 @@
 #!/bin/bash
 # config.sh - Configuration handling
 
+# Declare CONFIG as associative array
+declare -A CONFIG
+
 # Default configuration values
 DEFAULT_HOSTNAME="debian"
 DEFAULT_USERNAME="user"
@@ -9,34 +12,41 @@ DEFAULT_NETWORK_IF="eth0"
 DEFAULT_EFI_SIZE="512M"
 DEFAULT_ROOT_SIZE="0" # 0 means use all remaining space
 
-# Function to get disk information
-get_disk_info() {
-    local disk=$1
-    local info=""
-    info+="$(lsblk -dno SIZE,MODEL "/dev/$disk")"
-    if uuid=$(blkid -s UUID -o value "/dev/$disk" 2>/dev/null); then
-        info+=" UUID: $uuid"
-    fi
-    echo "$info"
-}
-
 # Function to list available disks with numbers
 list_available_disks() {
     log "Available disks:"
-    echo "No.  Device  Size     Model                    UUID"
-    echo "--------------------------------------------------------"
+    printf "%-4s %-10s %-8s %-25s %-40s\n" "No." "Device" "Size" "Model" "UUID"
+    echo "------------------------------------------------------------------------------------------------"
     local i=1
     local disks=()
     
+    # First list SATA/SAS disks
     while read -r disk; do
-        if [[ $disk =~ ^sd|^nvme|^vd ]]; then
+        if [[ $disk =~ ^sd && ! $disk =~ ^sdc ]]; then  # Exclude sdc which is your USB
             disks+=("$disk")
-            printf "%-4s %-7s %s\n" "[$i]" "/dev/$disk" "$(get_disk_info "$disk")"
+            local size model uuid
+            size=$(lsblk -dno SIZE "/dev/$disk" 2>/dev/null)
+            model=$(lsblk -dno MODEL "/dev/$disk" 2>/dev/null)
+            uuid=$(blkid -s UUID -o value "/dev/$disk" 2>/dev/null || echo "none")
+            printf "%-4s %-10s %-8s %-25s %-40s\n" "[$i]" "/dev/$disk" "$size" "$model" "$uuid"
+            i=$((i + 1))
+        fi
+    done < <(lsblk -dno NAME)
+
+    # Then list NVMe disks
+    while read -r disk; do
+        if [[ $disk =~ ^nvme && ! $disk =~ ^nvme2n1 ]]; then  # Exclude nvme2n1 which is 8G
+            disks+=("$disk")
+            local size model uuid
+            size=$(lsblk -dno SIZE "/dev/$disk" 2>/dev/null)
+            model=$(lsblk -dno MODEL "/dev/$disk" 2>/dev/null)
+            uuid=$(blkid -s UUID -o value "/dev/$disk" 2>/dev/null || echo "none")
+            printf "%-4s %-10s %-8s %-25s %-40s\n" "[$i]" "/dev/$disk" "$size" "$model" "$uuid"
             i=$((i + 1))
         fi
     done < <(lsblk -dno NAME)
     
-    echo "--------------------------------------------------------"
+    echo "------------------------------------------------------------------------------------------------"
     echo
     
     CONFIG[available_disks]="${disks[*]}"
@@ -48,11 +58,32 @@ get_disk_by_number() {
     local number=$1
     local -a disks
     read -ra disks <<< "${CONFIG[available_disks]}"
-    if [ "$number" -ge 1 ] && [ "$number" -le "${CONFIG[disk_count]}" ]; then
+    if [[ "$number" =~ ^[0-9]+$ ]] && [ "$number" -ge 1 ] && [ "$number" -le "${CONFIG[disk_count]}" ]; then
         echo "/dev/${disks[$((number-1))]}"
         return 0
     fi
     return 1
+}
+
+# Function to validate hostname
+validate_hostname() {
+    local hostname=$1
+    if [[ "$hostname" =~ ^[a-zA-Z0-9][-a-zA-Z0-9]*[a-zA-Z0-9]$ ]]; then
+        return 0
+    fi
+    return 1
+}
+
+# Function to validate size format
+validate_size() {
+    local size=$1
+    if [[ $size =~ ^[0-9]+[MGT]$ ]]; then
+        return 0
+    elif [ "$size" = "0" ]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 # Function to get disk configuration
@@ -114,8 +145,15 @@ get_system_config() {
     log "System Configuration"
     echo "-------------------"
     
-    read -p "Hostname [$DEFAULT_HOSTNAME]: " hostname
-    CONFIG[hostname]=${hostname:-$DEFAULT_HOSTNAME}
+    while true; do
+        read -p "Hostname [$DEFAULT_HOSTNAME]: " hostname
+        hostname=${hostname:-$DEFAULT_HOSTNAME}
+        if validate_hostname "$hostname"; then
+            CONFIG[hostname]=$hostname
+            break
+        fi
+        warning "Invalid hostname. Use alphanumeric characters and hyphens (not at start/end)"
+    done
     
     read -p "Username [$DEFAULT_USERNAME]: " username
     CONFIG[username]=${username:-$DEFAULT_USERNAME}
