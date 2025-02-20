@@ -1,0 +1,25 @@
+# Example configuration for automated installation
+# Copy this file to config and modify as needed
+
+# System Configuration
+HOSTNAME="debian"
+USERNAME="user"
+TIMEZONE="Europe/Paris"
+
+# Network Configuration
+NETWORK_IF="eth0"
+USE_DHCP="yes"
+
+# If USE_DHCP="no", uncomment and configure:
+#IP_ADDRESS="192.168.1.100"
+#NETMASK="255.255.255.0"
+#GATEWAY="192.168.1.1"
+#DNS1="8.8.8.8"
+#DNS2="8.8.4.4"
+
+# Disk Configuration
+# Note: Use full paths e.g., /dev/sda
+DISK1="/dev/sda"
+DISK2="/dev/sdb"
+EFI_SIZE="512M"
+ROOT_SIZE="0"  # 0 means use all remaining space
